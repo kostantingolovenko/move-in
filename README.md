@@ -34,3 +34,46 @@ MoveIn API is a robust backend service for a real estate platform. It provides R
    ```bash
    git clone [https://github.com/kostantingolovenko/move-in.git](https://github.com/kostantingolovenko/move-in.git)
    cd move-in
+Create and activate a virtual environment:
+
+Bash
+python -m venv .venv
+
+# Windows:
+.venv\Scripts\activate
+
+# Linux/Mac:
+source .venv/bin/activate
+Install dependencies:
+
+Bash
+pip install -r requirements.txt
+Set up environment variables:
+Create a .env file in the root directory based on .env.example:
+
+Фрагмент коду
+DATABASE_URL=postgresql://username:password@localhost:5432/movein_db
+SECRET_KEY=your_super_secret_key
+ALGORITHM=HS256
+Run the application:
+
+Bash
+uvicorn main:app --reload
+📚 API Documentation (Swagger UI)
+FastAPI automatically generates interactive API documentation. Once the server is running, you can access it at:
+
+Swagger UI: http://127.0.0.1:8000/docs
+
+ReDoc: http://127.0.0.1:8000/redoc
+
+🗄️ Project Structure
+Plaintext
+move-in/
+├── routers/          # API endpoints (users, listings, reviews)
+├── main.py           # FastAPI application instance & entry point
+├── models.py         # SQLAlchemy database models
+├── database.py       # Database connection and session management
+├── config.py         # Environment variables and configuration
+├── .env.example      # Example of required environment variables
+├── .gitignore        # Git ignore rules
+└── requirements.txt  # Python dependencies
