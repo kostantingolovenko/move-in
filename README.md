@@ -58,6 +58,7 @@ ALGORITHM=HS256
 Run the application:
 
 Bash
+
 uvicorn main:app --reload
 📚 API Documentation (Swagger UI)
 FastAPI automatically generates interactive API documentation. Once the server is running, you can access it at:
@@ -69,11 +70,19 @@ ReDoc: http://127.0.0.1:8000/redoc
 🗄️ Project Structure
 Plaintext
 move-in/
+
 ├── routers/          # API endpoints (users, listings, reviews)
+
 ├── main.py           # FastAPI application instance & entry point
+
 ├── models.py         # SQLAlchemy database models
+
 ├── database.py       # Database connection and session management
+
 ├── config.py         # Environment variables and configuration
+
 ├── .env.example      # Example of required environment variables
+
 ├── .gitignore        # Git ignore rules
+
 └── requirements.txt  # Python dependencies
