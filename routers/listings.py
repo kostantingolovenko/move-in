@@ -1,11 +1,11 @@
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Path
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
-from models import Listings
+from models import Listings, User
 from routers.auth import get_current_user
+from schemas import ListingRequest
 
 router = APIRouter(
     prefix='/listings',
@@ -22,22 +22,13 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-class ListingRequest(BaseModel):
-    title: str
-    description: str
-    location: str
-    address: str
-    rooms: int
-    floors: int
-    property_type: str
-    operation_type: str
-    price: int
-
 @router.get('/')
 async def get_all_user_listings(db: db_dependency, user: user_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
-    return db.query(Listings).filter(Listings.owner_id == user.get('id')).all()
+
+    user_model = db.query(User).filter(User.id==user.get('id')).first()
+    return user_model.listings
 
 @router.get('/search/')
 async def get_searched_listings(db: db_dependency,
@@ -46,7 +37,7 @@ async def get_searched_listings(db: db_dependency,
         floors: Optional[int] = None,
         property_type: Optional[str] = None,
         min_price: Optional[int] = None,
-        max_price: Optional[int] = None):
+        max_price: Optional[int] = None, limit: int = 20, offset: int = 0):
     listing_model = db.query(Listings)
     if location:
         listing_model = listing_model.filter(Listings.location.ilike(f"%{location}"))
@@ -61,7 +52,7 @@ async def get_searched_listings(db: db_dependency,
     if max_price:
         listing_model = listing_model.filter(Listings.price<=max_price)
 
-    return listing_model.all()
+    return listing_model.offset(offset).limit(limit).all()
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED)

@@ -6,6 +6,7 @@ from typing import Annotated, Optional
 
 from models import User
 from routers.auth import get_current_user, bcrypt_context
+from schemas import UpdateProfileRequest, UpdatePasswordRequest, UpdatePhoneNumberRequest
 
 router = APIRouter(
     prefix='/user',
@@ -22,12 +23,7 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-class UpdatePasswordRequest(BaseModel):
-    old_password: str
-    new_password: str
 
-class UpdatePhoneNumberRequest(BaseModel):
-    new_phone_number: str
 
 @router.get('/{user_id}')
 async def read_user_info(user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)):
@@ -35,28 +31,25 @@ async def read_user_info(user: user_dependency, db: db_dependency, user_id: int 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
 
     user_model = db.query(User).filter(User.id==user_id).first()
-    info = {
-        user_model.first_name,
-        user_model.last_name,
-        user_model.phone_number
+    return {
+        "first_name": user_model.first_name,
+        "last_name": user_model.last_name,
+        "phone_number": user_model.phone_number
     }
-    return info
+
 
 @router.put('/update_profile/', status_code=status.HTTP_204_NO_CONTENT)
-async def update_profile(user: user_dependency, db:db_dependency,
-                         first_name: Optional[str] = None,
-                         last_name: Optional[str] = None,
-                         phone_number: Optional[str] = None):
+async def update_profile(user: user_dependency, db:db_dependency, update_profile_request: UpdateProfileRequest):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
 
     user_model = db.query(User).filter(User.id==user.get('id')).first()
-    if first_name:
-        user_model.first_name = first_name
-    if last_name:
-        user_model.last_name = last_name
-    if phone_number:
-        user_model.phone_number = phone_number
+    if update_profile_request.first_name:
+        user_model.first_name = update_profile_request.first_name
+    if update_profile_request.last_name:
+        user_model.last_name = update_profile_request.last_name
+    if update_profile_request.phone_number:
+        user_model.phone_number = update_profile_request.phone_number
 
 
     db.add(user_model)

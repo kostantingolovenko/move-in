@@ -1,17 +1,16 @@
 from http.client import HTTPException
-from os import access
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from passlib.context import CryptContext
-from pydantic import BaseModel, Field
 from datetime import datetime, timezone, timedelta
 from jose import jwt, JWTError
 
 from database import SessionLocal
 from models import User
-from config import Settings, settings
+from config import settings
+from schemas import CreateUserRequest, Token
 
 router = APIRouter(
     prefix='/auth',
@@ -34,17 +33,7 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/token')
 
-class CreateUserRequest(BaseModel):
-    first_name: str
-    last_name: str
-    email: str
-    phone_number: str = Field(min_length=10, max_length=13)
-    password: str
-    role: str
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     try:
@@ -60,7 +49,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
 
 def authenticate_user(email: str, password: str, db):
     user_model = db.query(User).filter(User.email==email).first()
-    if not User:
+    if not user_model:
         return False
     if not bcrypt_context.verify(password, user_model.hashed_password):
         return False

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -17,6 +18,10 @@ class User(Base):
     created_at = Column(DateTime, default=lambda : datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda : datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
+
+    listings = relationship("Listings", back_populates='owner', cascade="all, delete-orphan")
+    reviews = relationship("Reviews", back_populates='user', cascade="all, delete-orphan")
+    favorites = relationship("Favorites", back_populates='user', cascade="all, delete-orphan")
 
 class Listings(Base):
     __tablename__ = "listings"
@@ -36,6 +41,10 @@ class Listings(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
     owner_id = Column(Integer, ForeignKey('users.id'))
 
+    owner = relationship("User", back_populates='listings')
+    reviews = relationship("Reviews", back_populates='listing', cascade="all, delete-orphan")
+    favorited_by = relationship("Favorites", back_populates='listing', cascade="all, delete-orphan")
+
 class Reviews(Base):
     __tablename__ = 'reviews'
 
@@ -48,6 +57,9 @@ class Reviews(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
 
+    user = relationship("User", back_populates='reviews')
+    listing = relationship('Listings', back_populates='reviews')
+
 class Favorites(Base):
     __tablename__ = 'favorites'
 
@@ -55,3 +67,6 @@ class Favorites(Base):
     user_id = Column(Integer, ForeignKey('users.id'))
     listing_id = Column(Integer, ForeignKey('listings.id'))
     added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates='favorites')
+    listing = relationship("Listings", back_populates='favorited_by')

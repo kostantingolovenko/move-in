@@ -1,13 +1,9 @@
 import uvicorn
 from fastapi import FastAPI
 
-from database import engine
-from models import Base
 from routers import listings, auth, users, admin, reviews, favorites
 
 app = FastAPI()
-
-Base.metadata.create_all(bind=engine)
 
 app.include_router(listings.router)
 app.include_router(auth.router)

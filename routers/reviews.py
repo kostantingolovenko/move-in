@@ -1,11 +1,11 @@
-from typing import Annotated, Optional, ParamSpecArgs
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Path
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models import Reviews
 from routers.auth import get_current_user
+from schemas import ReviewRequest
 
 router = APIRouter(
     prefix='/reviews',
@@ -22,9 +22,7 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-class ReviewRequest(BaseModel):
-    rating: int = Path(gt=0, lt=6)
-    comment: str
+
 
 @router.get('/{listing_id}')
 async def read_reviews_on_listing(db:db_dependency, listing_id: int = Path(gt=0)):
