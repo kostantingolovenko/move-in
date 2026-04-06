@@ -1,8 +1,8 @@
 from typing import Optional
+from typing import List
 
 from fastapi import Path
 from pydantic import BaseModel, Field
-
 
 class CreateUserRequest(BaseModel):
     first_name: str
@@ -16,6 +16,13 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class ListingImageRequest(BaseModel):
+    id: int
+    image_url: str
+
+    class Config:
+        from_attributes = True
+
 class ListingRequest(BaseModel):
     title: str
     description: str
@@ -26,6 +33,11 @@ class ListingRequest(BaseModel):
     property_type: str
     operation_type: str
     price: int
+
+    images: List[ListingImageRequest] = []
+
+    class Config:
+        from_attributes = True
 
 class ReviewRequest(BaseModel):
     rating: int = Path(gt=0, lt=6)

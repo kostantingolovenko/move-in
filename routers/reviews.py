@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
-from models import Reviews
+from models import Reviews, Listings
 from routers.auth import get_current_user
 from schemas import ReviewRequest
 
@@ -22,12 +22,13 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-
-
 @router.get('/{listing_id}')
 async def read_reviews_on_listing(db:db_dependency, listing_id: int = Path(gt=0)):
-    return db.query(Reviews).filter(Reviews.listing_id==listing_id).all()
+    listing_model = db.query(Listings).filter(Listings.id==listing_id).first()
+    if listing_model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
+    return listing_model.reviews
 
 @router.post('/listing/{listing_id}/reviews', status_code=status.HTTP_201_CREATED)
 async def create_review(user: user_dependency, db: db_dependency, review_request: ReviewRequest,

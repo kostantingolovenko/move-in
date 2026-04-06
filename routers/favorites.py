@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from typing import Annotated
 
-from models import Favorites, Listings
+from models import Favorites, Listings, User
 from routers.auth import get_current_user
 
 router = APIRouter(
@@ -26,7 +26,8 @@ async def read_user_favorites(user: user_dependency, db: db_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
 
-    return db.query(Favorites).filter(Favorites.user_id==user.get('id')).all()
+    user_model = db.query(User).filter(User.id==user.get('id')).first()
+    return user_model.favorites
 
 @router.post('/{listing_id}', status_code=status.HTTP_201_CREATED)
 async def create_favorite(user: user_dependency, db: db_dependency, listing_id: int = Path(gt=0)):

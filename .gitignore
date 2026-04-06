@@ -1,31 +1,22 @@
-# Python virtual environments
 .venv/
 venv/
 env/
 
-# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Environment variables (Тут наші паролі)
 .env
 
-# Local Databases
 *.sqlite3
 *.db
 
-# IDEs (Додав ще vscode на всякий випадок)
 .idea/
 .vscode/
 
-# =========================
-# User Uploaded Media (ДЛЯ ФОТОГРАФІЙ)
-# =========================
 static/images/
 uploads/
 media/
 
-# Test/Typing Caches (Корисно на майбутнє)
 .pytest_cache/
 .mypy_cache/

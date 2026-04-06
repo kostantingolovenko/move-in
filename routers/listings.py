@@ -4,11 +4,13 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 import uuid
+from typing import List
 
 from database import SessionLocal
 from models import Listings, User, ListingImages
 from routers.auth import get_current_user
 from schemas import ListingRequest
+
 
 router = APIRouter(
     prefix='/listings',
@@ -28,7 +30,7 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-@router.get('/')
+@router.get('/', response_model=List[ListingRequest])
 async def get_all_user_listings(db: db_dependency, user: user_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
@@ -36,7 +38,7 @@ async def get_all_user_listings(db: db_dependency, user: user_dependency):
     user_model = db.query(User).filter(User.id==user.get('id')).first()
     return user_model.listings
 
-@router.get('/search/')
+@router.get('/search/', response_model=List[ListingRequest])
 async def get_searched_listings(db: db_dependency,
         location: Optional[str] = None,
         rooms: Optional[int] = None,
