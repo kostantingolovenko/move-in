@@ -44,6 +44,7 @@ class Listings(Base):
     owner = relationship("User", back_populates='listings')
     reviews = relationship("Reviews", back_populates='listing', cascade="all, delete-orphan")
     favorited_by = relationship("Favorites", back_populates='listing', cascade="all, delete-orphan")
+    images = relationship("ListingImages", back_populates='listing', cascade="all, delete-orphan")
 
 class Reviews(Base):
     __tablename__ = 'reviews'
@@ -70,3 +71,12 @@ class Favorites(Base):
 
     user = relationship("User", back_populates='favorites')
     listing = relationship("Listings", back_populates='favorited_by')
+
+class ListingImages(Base):
+    __tablename__ = 'listing_images'
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_url = Column(String)
+    listing_id = Column(Integer, ForeignKey('listings.id'))
+
+    listing = relationship('Listings', back_populates='images')
