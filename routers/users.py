@@ -63,6 +63,9 @@ async def change_password(user: user_dependency, db: db_dependency, update_pass_
     user_model = db.query(User).filter(User.id==user.get('id')).first()
     if bcrypt_context.verify(update_pass_request.old_password, user_model.hashed_password):
         user_model.hashed_password = bcrypt_context.hash(update_pass_request.new_password)
+    else:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Wrong password')
+
 
     db.add(user_model)
     db.commit()

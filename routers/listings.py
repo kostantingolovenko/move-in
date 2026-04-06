@@ -95,6 +95,8 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
     db.add(image_model)
     db.commit()
 
+    return {"message": "Image uploaded successfully", "image_url": image_model.image_url}
+
 
 @router.put('/{listing_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def update_listing(user: user_dependency, db: db_dependency, updated_listing: ListingRequest
