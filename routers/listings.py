@@ -1,9 +1,12 @@
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Path, UploadFile, File
 from sqlalchemy.orm import Session
+import os
+import shutil
+import uuid
 
 from database import SessionLocal
-from models import Listings, User
+from models import Listings, User, ListingImages
 from routers.auth import get_current_user
 from schemas import ListingRequest
 
@@ -11,6 +14,9 @@ router = APIRouter(
     prefix='/listings',
     tags=['listings']
 )
+
+UPLOAD_DIR = "static/images"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def get_db():
     db = SessionLocal()
@@ -65,6 +71,28 @@ async def create_new_listing(user: user_dependency, db: db_dependency, listing_r
     db.commit()
     db.refresh(listing_model)
     return listing_model
+
+@router.post('/{listing_id}/images/', status_code=status.HTTP_201_CREATED)
+async def create_image(user: user_dependency, db: db_dependency, listing_id: int = Path(gt=0)
+                       , file:UploadFile = File(...)):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
+
+    listing_model = db.query(Listings).filter(Listings.id==listing_id).first()
+    if listing_model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+
+    file_extension = file.filename.split('.')[-1]
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    image_model = ListingImages(image_url=f"/{UPLOAD_DIR}/{unique_filename}", listing_id=listing_id)
+    db.add(image_model)
+    db.commit()
+
 
 @router.put('/{listing_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def update_listing(user: user_dependency, db: db_dependency, updated_listing: ListingRequest

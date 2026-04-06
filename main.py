@@ -1,9 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from routers import listings, auth, users, admin, reviews, favorites
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(listings.router)
 app.include_router(auth.router)
