@@ -6,10 +6,11 @@ import shutil
 import uuid
 from typing import List
 
-from database import SessionLocal
+from database import get_db
 from models import Listings, User, ListingImages
 from routers.auth import get_current_user
-from schemas import ListingRequest
+from schemas import ListingRequest, ListingDetailResponse, ListingImageResponse
+from config import MAX_FILE_SIZE, ALLOWED_MIME_TYPES
 
 
 router = APIRouter(
@@ -20,17 +21,10 @@ router = APIRouter(
 UPLOAD_DIR = "static/images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-@router.get('/', response_model=List[ListingRequest])
+@router.get('/', response_model=List[ListingDetailResponse])
 async def get_all_user_listings(db: db_dependency, user: user_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
@@ -38,7 +32,7 @@ async def get_all_user_listings(db: db_dependency, user: user_dependency):
     user_model = db.query(User).filter(User.id==user.get('id')).first()
     return user_model.listings
 
-@router.get('/search/', response_model=List[ListingRequest])
+@router.get('/search/', response_model=List[ListingDetailResponse])
 async def get_searched_listings(db: db_dependency,
         location: Optional[str] = None,
         rooms: Optional[int] = None,
@@ -48,7 +42,7 @@ async def get_searched_listings(db: db_dependency,
         max_price: Optional[int] = None, limit: int = 20, offset: int = 0):
     listing_model = db.query(Listings)
     if location:
-        listing_model = listing_model.filter(Listings.location.ilike(f"%{location}"))
+        listing_model = listing_model.filter(Listings.location.ilike(f"%{location}%"))
     if  rooms:
         listing_model = listing_model.filter(Listings.rooms==rooms)
     if floors:
@@ -63,7 +57,7 @@ async def get_searched_listings(db: db_dependency,
     return listing_model.offset(offset).limit(limit).all()
 
 
-@router.post('/', status_code=status.HTTP_201_CREATED)
+@router.post('/', status_code=status.HTTP_201_CREATED, response_model=ListingDetailResponse)
 async def create_new_listing(user: user_dependency, db: db_dependency, listing_request: ListingRequest):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
@@ -74,7 +68,7 @@ async def create_new_listing(user: user_dependency, db: db_dependency, listing_r
     db.refresh(listing_model)
     return listing_model
 
-@router.post('/{listing_id}/images/', status_code=status.HTTP_201_CREATED)
+@router.post('/{listing_id}/images/', status_code=status.HTTP_201_CREATED, response_model=ListingImageResponse)
 async def create_image(user: user_dependency, db: db_dependency, listing_id: int = Path(gt=0)
                        , file:UploadFile = File(...)):
     if not user:
@@ -84,7 +78,17 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
     if listing_model is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    file_extension = file.filename.split('.')[-1]
+    if listing_model.owner_id != user.get('id'):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to add images to this listing")
+
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(tatus_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only JPEG, PNG or WEBP are allowed.")
+
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File is too large. Max size: {MAX_FILE_SIZE / 1024 / 1024} MB")
+
+    file_extension = Path(file.filename).suffix.lower()
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
@@ -94,6 +98,7 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
     image_model = ListingImages(image_url=f"/{UPLOAD_DIR}/{unique_filename}", listing_id=listing_id)
     db.add(image_model)
     db.commit()
+    db.refresh(image_model)
 
     return {"message": "Image uploaded successfully", "image_url": image_model.image_url}
 

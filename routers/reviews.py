@@ -1,28 +1,21 @@
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
+from database import get_db
 from models import Reviews, Listings
 from routers.auth import get_current_user
-from schemas import ReviewRequest
+from schemas import ReviewRequest, ReviewResponse
 
 router = APIRouter(
     prefix='/reviews',
     tags=['reviews']
 )
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-@router.get('/{listing_id}')
+@router.get('/{listing_id}', response_model=List[ReviewResponse])
 async def read_reviews_on_listing(db:db_dependency, listing_id: int = Path(gt=0)):
     listing_model = db.query(Listings).filter(Listings.id==listing_id).first()
     if listing_model is None:
@@ -30,7 +23,7 @@ async def read_reviews_on_listing(db:db_dependency, listing_id: int = Path(gt=0)
 
     return listing_model.reviews
 
-@router.post('/listing/{listing_id}/reviews', status_code=status.HTTP_201_CREATED)
+@router.post('/listing/{listing_id}/reviews', status_code=status.HTTP_201_CREATED, response_model=ReviewResponse)
 async def create_review(user: user_dependency, db: db_dependency, review_request: ReviewRequest,
                         listing_id: int = Path(gt=0)):
     if not user:
