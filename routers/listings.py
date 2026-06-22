@@ -1,3 +1,4 @@
+import pathlib
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Path, UploadFile, File
 from sqlalchemy.orm import Session
@@ -82,13 +83,13 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to add images to this listing")
 
     if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(tatus_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only JPEG, PNG or WEBP are allowed.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only JPEG, PNG or WEBP are allowed.")
 
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File is too large. Max size: {MAX_FILE_SIZE / 1024 / 1024} MB")
 
-    file_extension = Path(file.filename).suffix.lower()
+    file_extension = pathlib.Path(file.filename).suffix.lower()
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
@@ -100,7 +101,7 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
     db.commit()
     db.refresh(image_model)
 
-    return {"message": "Image uploaded successfully", "image_url": image_model.image_url}
+    return image_model
 
 
 @router.put('/{listing_id}', status_code=status.HTTP_204_NO_CONTENT)
