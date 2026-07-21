@@ -10,6 +10,7 @@ from database import get_db
 from models import User
 from config import settings, limiter
 from schemas import CreateUserRequest, Token, RefreshTokenRequest
+from celery_worker import send_verification_email
 
 router = APIRouter(
     prefix='/auth',
@@ -66,6 +67,9 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         role = 'user',
         is_active = True
     )
+
+    send_verification_email.delay(user_model.email)
+
     db.add(user_model)
     db.commit()
     db.refresh(user_model)

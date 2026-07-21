@@ -1,23 +1,28 @@
 import pathlib
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Path, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Path, UploadFile, File, Response
+import redis
+import json
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import os
 import shutil
 import uuid
 from typing import List
 
 from database import get_db
-from models import Listings, User, ListingImages
+from models import Listings, User, ListingImages, Reviews
 from routers.auth import get_current_user
 from schemas import ListingRequest, ListingDetailResponse, ListingImageResponse
 from config import MAX_FILE_SIZE, ALLOWED_MIME_TYPES
-
+from celery_worker import send_sms_reminder
 
 router = APIRouter(
     prefix='/listings',
     tags=['listings']
 )
+
+r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 UPLOAD_DIR = "static/images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -57,6 +62,25 @@ async def get_searched_listings(db: db_dependency,
 
     return listing_model.offset(offset).limit(limit).all()
 
+@router.get('/top', response_model=List[ListingDetailResponse])
+def get_top5_listings(db: db_dependency):
+    cached_data = r.get('top5_listings')
+
+    if cached_data:
+        return Response(content=cached_data, media_type="application/json")
+
+    listing_model = (db.query(Listings)
+                     .outerjoin(Reviews)
+                     .group_by(Listings.id)
+                     .order_by(func.avg(Reviews.rating).desc())
+                     .limit(5).all())
+    listings_data = [ListingDetailResponse.model_validate(listing).model_dump(mode='json') for listing in listing_model]
+    listings_json = json.dumps(listings_data)
+
+    r.setex('top5_listings', 60, listings_json)
+
+    return listing_model
+
 
 @router.post('/', status_code=status.HTTP_201_CREATED, response_model=ListingDetailResponse)
 async def create_new_listing(user: user_dependency, db: db_dependency, listing_request: ListingRequest):
@@ -90,7 +114,7 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
             detail=f"File is too large. Max size: {MAX_FILE_SIZE / 1024 / 1024} MB")
 
     file_extension = pathlib.Path(file.filename).suffix.lower()
-    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
     with open(file_path, "wb") as buffer:
@@ -103,6 +127,14 @@ async def create_image(user: user_dependency, db: db_dependency, listing_id: int
 
     return image_model
 
+@router.post('/{listing_id}/book-apartment')
+async def testing_book_apartment(db: db_dependency, user: user_dependency, listing_id: int = Path(gt=0)):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
+
+    user_model = db.query(User).filter(User.id==user.get('id')).first()
+
+    send_sms_reminder.apply_async(args=[user_model.phone_number], countdown=30)
 
 @router.put('/{listing_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def update_listing(user: user_dependency, db: db_dependency, updated_listing: ListingRequest

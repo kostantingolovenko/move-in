@@ -1,7 +1,9 @@
+from urllib import response
+
 import pytest
 from .utils import *
 from routers.listings import get_db, get_current_user
-from models import Listings
+from models import Listings, ListingImages
 
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[get_current_user] = override_get_current_user
@@ -61,6 +63,15 @@ def test_upload_listing_image(test_listing):
     response = client.post(f'/listings/{test_listing.id}/images/', files=files)
 
     assert response.status_code == 201
-    data = response.json()
-    assert data['message'] == "Image uploaded successfully"
-    assert "static/images/" in data['image_url']
+
+    db = TestingSessionLocal()
+    model = db.query(ListingImages).filter(ListingImages.listing_id==test_listing.id).first()
+
+    assert model.image_url[:14] == '/static/images'
+
+
+def test_top5_listings():
+    response = client.get('/listings/top')
+
+    assert response.status_code == 200
+
