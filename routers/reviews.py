@@ -6,6 +6,7 @@ from database import get_db
 from models import Reviews, Listings
 from routers.auth import get_current_user
 from schemas import ReviewRequest, ReviewResponse
+from services.ws_manager import websocket_manager
 
 router = APIRouter(
     prefix='/reviews',
@@ -33,6 +34,15 @@ async def create_review(user: user_dependency, db: db_dependency, review_request
     db.add(review_model)
     db.commit()
     db.refresh(review_model)
+
+    listing_model = db.query(Listings).filter(Listings.id==listing_id).first()
+
+    if not listing_model:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Item not found')
+
+    await websocket_manager.send_personal_message({'type': 'new_review', 'text': 'You have new review!'},
+                                                  user_id=listing_model.owner_id)
+
     return review_model
 
 @router.put('/{review_id}', status_code=status.HTTP_204_NO_CONTENT)
