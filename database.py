@@ -1,3 +1,4 @@
+import redis.asyncio as redis
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
@@ -18,3 +19,5 @@ def get_db():
         yield db
     finally:
         db.close()
+
+redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)

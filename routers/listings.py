@@ -10,7 +10,7 @@ import shutil
 import uuid
 from typing import List
 
-from database import get_db
+from database import get_db, redis_client
 from models import Listings, User, ListingImages, Reviews
 from routers.auth import get_current_user
 from schemas import ListingRequest, ListingDetailResponse, ListingImageResponse
@@ -21,8 +21,6 @@ router = APIRouter(
     prefix='/listings',
     tags=['listings']
 )
-
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 UPLOAD_DIR = "static/images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -77,7 +75,7 @@ def get_top5_listings(db: db_dependency):
     listings_data = [ListingDetailResponse.model_validate(listing).model_dump(mode='json') for listing in listing_model]
     listings_json = json.dumps(listings_data)
 
-    r.setex('top5_listings', 60, listings_json)
+    redis_client.setex('top5_listings', 60, listings_json)
 
     return listing_model
 

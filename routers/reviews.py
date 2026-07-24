@@ -1,9 +1,11 @@
+import json
+from email import message
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import Reviews, Listings
+from database import get_db, redis_client
+from models import Reviews, Listings, User
 from routers.auth import get_current_user
 from schemas import ReviewRequest, ReviewResponse
 from services.ws_manager import websocket_manager
@@ -40,8 +42,11 @@ async def create_review(user: user_dependency, db: db_dependency, review_request
     if not listing_model:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Item not found')
 
-    await websocket_manager.send_personal_message({'type': 'new_review', 'text': 'You have new review!'},
-                                                  user_id=listing_model.owner_id)
+    user_model = db.query(User).filter(User.id==user.get('id')).first()
+
+    message = {"type": "new_review", "text": f"{user_model.first_name} написав новий відгук на квартиру!"}
+    channel_name = f"notifications:{listing_model.owner_id}"
+    await redis_client.publish(channel_name, json.dumps(message))
 
     return review_model
 
